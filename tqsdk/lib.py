@@ -7,6 +7,7 @@ from asyncio import gather
 from typing import Optional
 
 from tqsdk.api import TqApi
+from tqsdk.backtest import TqBacktest
 from tqsdk.channel import TqChan
 from tqsdk.datetime import _is_in_trading_time
 
@@ -83,7 +84,8 @@ class TargetPosTask(object, metaclass=TargetPosTaskSingleton):
 
         self._quote = self._api.get_quote(self._symbol)
         self._time_update_task = self._api.create_task(self._update_time_from_md())  # 监听行情更新并记录当时本地时间的task
-        self._local_time_record = time.time() - 0.005  # 更新最新行情时间时的本地时间
+        # 更新最新行情时间时的本地时间 (回测判断时间段时不增加时间差,复盘和实盘行情需要增加)
+        self._local_time_record = float("nan") if isinstance(self._api._backtest, TqBacktest) else (time.time() - 0.005)
         self._local_time_record_update_chan = TqChan(self._api, last_only=True)  # 监听 self._local_time_record 更新
 
     def set_target_volume(self, volume: int) -> None:
@@ -163,7 +165,9 @@ class TargetPosTask(object, metaclass=TargetPosTaskSingleton):
         """监听行情更新并记录当时本地时间的task"""
         async with self._api.register_update_notify(self._quote) as quote_update_chan:
             async for _ in quote_update_chan:  # quote有更新时:更新记录的时间
-                self._local_time_record = time.time() - 0.005  # 更新最新行情时间时的本地时间
+                # 更新最新行情时间时的本地时间 (回测判断时间段时不增加时间差,复盘和实盘行情需要增加)
+                self._local_time_record = float("nan") if isinstance(self._api._backtest, TqBacktest) else (
+                        time.time() - 0.005)
                 self._local_time_record_update_chan.send_nowait(True)  # 通知记录的时间有更新
 
     async def _target_pos_task(self):
