@@ -522,7 +522,6 @@ class TqSim(object):
             return
         trade_log = self._ensure_trade_log()
         # 记录账户截面
-        print(self._account)
         trade_log["account"] = self._account.copy()
         trade_log["positions"] = {k: v.copy() for k, v in self._positions.items()}
         # 为下一交易日调整账户
